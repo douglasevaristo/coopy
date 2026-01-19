@@ -5,7 +5,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 date_default_timezone_set('UTC');
 
-$dbPath = __DIR__ . '/coopy.sqlite';
+$dbPath = '/var/www/douglasevaristo/coopy.sqlite';
 $db = new PDO('sqlite:' . $dbPath);
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 

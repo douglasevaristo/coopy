@@ -164,7 +164,8 @@
       color: var(--accent);
       font-weight: 600;
       letter-spacing: 0.08em;
-      font-size: 18px;
+      letter-spacing: 0.8em;
+      font-size: 25px;
     }
 
     .section-title {
@@ -179,7 +180,7 @@
       display: grid;
       grid-template-columns: repeat(4, minmax(46px, 1fr));
       gap: 10px;
-      max-width: 260px;
+      max-width: 360px;
     }
 
     .code-inputs input {
@@ -225,24 +226,54 @@
       background: #efe8db;
     }
 
+    .paste-wrap {
+      position: relative;
+    }
+
+    .paste-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      border: 1px solid #d6d0c4;
+      background: #fffaf2;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .paste-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .paste-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: #6f6a60;
+    }
+
     .toast {
       position: fixed;
-      right: 22px;
-      bottom: 22px;
+      top: 22px;
+      left: 50%;
       background: #2b2b2b;
       color: #fff;
       padding: 12px 18px;
       border-radius: 999px;
       box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
       opacity: 0;
-      transform: translateY(10px);
+      transform: translate(-50%, -10px);
       transition: opacity 0.25s ease, transform 0.25s ease;
       pointer-events: none;
     }
 
     .toast.show {
       opacity: 1;
-      transform: translateY(0);
+      transform: translate(-50%, 0);
     }
 
     footer {
@@ -289,7 +320,7 @@
     <main class="card">
       <section id="landing" class="grid">
         <div>
-          <div class="section-title">Entrar na sessao</div>
+          <div class="section-title">Entrar na sessão</div>
           <div class="row">
             <div class="code-inputs" id="codeInputs">
               <input class="code-digit" inputmode="text" maxlength="1" aria-label="Codigo 1" />
@@ -303,14 +334,14 @@
         <div class="divider">ou</div>
         <div>
           <div class="section-title">Ou comece agora</div>
-          <button class="btn" id="createBtn">Criar sessao</button>
+          <button class="btn" id="createBtn">Criar sessão</button>
         </div>
       </section>
 
       <section id="session" class="grid hidden">
         <div class="row" style="justify-content: space-between;">
           <div>
-            <div class="section-title">Codigo da sessao</div>
+            <div class="section-title">Codigo da sessão</div>
             <div class="badge" id="sessionCode"></div>
           </div>
           <!-- <button class="btn secondary" id="refreshBtn">Atualizar</button> -->
@@ -318,15 +349,22 @@
 
         <div id="sendSection">
           <div class="section-title">Enviar texto</div>
-          <textarea id="textInput" placeholder="Cole ou digite aqui..."></textarea>
+          <div class="paste-wrap">
+            <textarea id="textInput" placeholder="Cole ou digite aqui..."></textarea>
+            <button class="paste-btn" id="pasteBtn" type="button" aria-label="Colar do clipboard">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16 4h-1.2a2.8 2.8 0 0 0-5.6 0H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm-4-1a1.2 1.2 0 0 1 1.2 1.2v.8h-2.4v-.8A1.2 1.2 0 0 1 12 3zm4 17H8V6h1.2v1h5.6V6H16v14zM9 16h6v-1H9v1z"/>
+              </svg>
+            </button>
+          </div>
           <div class="row" style="margin-top: 10px;">
             <button class="btn" id="sendBtn">Enviar</button>
             <span id="status" class="section-title"></span>
           </div>
         </div>
 
-        <div>
-          <div class="section-title">Historico da sessao (clique para copiar)</div>
+        <div id="historySection">
+          <div class="section-title">Histórico</div>
           <div class="history" id="history"></div>
         </div>
       </section>
@@ -354,11 +392,13 @@
     const sessionCodeEl = document.getElementById('sessionCode');
     const codeInputs = Array.from(document.querySelectorAll('.code-digit'));
     const sendSection = document.getElementById('sendSection');
+    const historySection = document.getElementById('historySection');
     const createBtn = document.getElementById('createBtn');
     const joinBtn = document.getElementById('joinBtn');
     const sendBtn = document.getElementById('sendBtn');
     const refreshBtn = document.getElementById('refreshBtn');
     const textInput = document.getElementById('textInput');
+    const pasteBtn = document.getElementById('pasteBtn');
     const historyEl = document.getElementById('history');
     const toast = document.getElementById('toast');
     const statusEl = document.getElementById('status');
@@ -412,6 +452,7 @@
     function setRole(sender) {
       isSender = sender;
       sendSection.classList.toggle('hidden', !sender);
+      historySection.classList.toggle('hidden', sender);
       if (!sender) {
         textInput.value = '';
         statusEl.textContent = '';
@@ -462,7 +503,13 @@
           const item = document.createElement('div');
           item.className = 'history-item';
           item.textContent = message.text;
-          item.addEventListener('click', () => copyToClipboard(message.text));
+          item.addEventListener('click', () => {
+            const text = message.text.trim();
+            copyToClipboard(text);
+            if (isHttpUrl(text)) {
+              window.open(text, '_blank', 'noopener');
+            }
+          });
           historyEl.prepend(item);
         });
       }
@@ -477,7 +524,7 @@
       try {
         const data = await post('create_session', {});
         if (!data.ok) {
-          showToast('Erro ao criar sessao');
+          showToast('Erro ao criar sessão');
           return;
         }
         deviceKey = data.device_key;
@@ -568,6 +615,10 @@
       document.body.removeChild(helper);
     }
 
+    function isHttpUrl(text) {
+      return /^https?:\/\//i.test(text);
+    }
+
     createBtn.addEventListener('click', createSession);
     joinBtn.addEventListener('click', joinSession);
     if (sendBtn) {
@@ -587,6 +638,26 @@
         statusTimer = setTimeout(() => {
           statusEl.textContent = '';
         }, 500);
+      });
+    }
+
+    if (pasteBtn) {
+      pasteBtn.addEventListener('click', async () => {
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+          showToast('Clipboard nao disponivel');
+          return;
+        }
+        try {
+          const text = await navigator.clipboard.readText();
+          if (!text) {
+            showToast('Clipboard vazio');
+            return;
+          }
+          textInput.value = text;
+          showToast('Colado!');
+        } catch (error) {
+          showToast('Nao foi possivel colar');
+        }
       });
     }
 
